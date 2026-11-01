@@ -39,6 +39,8 @@ static inline int arena_requesttid(void)
     size_t times_tried = 0;
     for (int i = arena_thread_index(); times_tried < MAXIMUM_THREAD_NUM;
          times_tried++) {
+        if (i == 0)
+            continue;
         int wi = i / ATOMIC_ARENA_WORD_SZ_BITS,
             bi = i % ATOMIC_ARENA_WORD_SZ_BITS;
 

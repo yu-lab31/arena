@@ -54,4 +54,36 @@ static inline void arena_name_region(void *addr, size_t len, const char *name)
     (MAXIMUM_STACK_DEPTH - MAXIMUM_THREAD_POINTER_NUMBER)
 #define LOCAL_POINTER_RESERVED (MAXIMUM_LOCAL_POINTER_NUMBER * FAT_POINTER_SIZE)
 
+// ----- HEAP START -----
+
+// HEAP SPACE: 112G
+
+#define ARENA_BLOCK_SZ ((size_t)1 << 18) // 256K, 1/8 of which is header
+#define ARENA_BLOCK_HEADER_SZ (ARENA_BLOCK_SZ >> 3)
+#define ARENA_BLOCK_CAP (ARENA_BLOCK_SZ - ARENA_BLOCK_HEADER_SZ)
+
+// Segment for objects smaller than capacity of one block and is local to their
+// owners.
+#define ARENA_HEAP_NORMAL_SZ (((size_t)1 << 35) + ((size_t)1 << 34)) // 48G
+#define ARENA_HEAP_NORMAL_HEADER_SZ (ARENA_BLOCK_SZ << 1)
+#define ARENA_HEAP_NORMAL_BLOCK_NUM                                            \
+    ((ARENA_HEAP_NORMAL_SZ - ARENA_HEAP_NORMAL_HEADER_SZ) / ARENA_BLOCK_SZ)
+
+// Segment for objects bigger than capacity of one block and is local to their
+// owners.
+#define ARENA_HEAP_HUGE_SZ ((size_t)1 << 35)                              // 32G
+#define ARENA_HEAP_HUGE_HEADER_SZ (((size_t)1 << 22) + ((size_t)1 << 21)) // 6M
+#define ARENA_HEAP_HUGE_CAP (ARENA_HEAP_HUGE_SZ - ARENA_HEAP_HUGE_HEADER_SZ)
+#define ARENA_HEAP_HUGE_OBJECT_NUM (ARENA_HEAP_HUGE_CAP / ARENA_BLOCK_CAP)
+
+// Segment for shared objects
+#define ARENA_HEAP_SHARED_SZ ((size_t)1 << 35) // 32G
+
+#define ARENA_SLOT_SZ (ARENA_HEAP_SHARED_SZ / MAXIMUM_THREAD_NUM) // 8M
+
+#define ARENA_SHARED_CHUNK_SZ ((size_t)1 << 15) // 32K
+#define ARENA_SC_PER_SLOT (ARENA_SLOT_SZ / ARENA_SHARED_CHUNK_SZ)
+
+// ----- HEAP   END -----
+
 #endif // ARENA_LAYOUT_H_
