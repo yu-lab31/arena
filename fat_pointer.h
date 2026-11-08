@@ -11,8 +11,8 @@ typedef struct
     // 1: escaped from current stack
     // 7: escaped from current thread
     // others: reserved
-    uint8_t escape_flags;
-    uint8_t reserved[7];
+    uint64_t escape_flags : 8;
+    uint64_t size : 56; // object size in bytes
 } FatPointer;
 
 #define fat_pointer_escape_stack_frame(pfp)                                    \

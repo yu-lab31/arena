@@ -72,13 +72,15 @@ extern pthread_once_t arena_stack_once;
         arena_stack.local_pointer_offset = prev_frame;                         \
     } while (0)
 
-#define ARENA_STACK_ACCEPT(ptr)                                                \
+// TODO: remove abort and use errno instead.
+#define ARENA_STACK_ACCEPT(ptr, len)                                           \
     do {                                                                       \
         if (arena_stack.local_pointer_offset >= MAXIMUM_LOCAL_POINTER_NUMBER)  \
             abort();                                                           \
         FatPointer *pfp =                                                      \
             &(arena_stack.local_pointers[arena_stack.local_pointer_offset]);   \
         pfp->escape_flags = (uint8_t)0;                                        \
+        pfp->size = (uint64_t)len;                                             \
         pfp->addr = ptr;                                                       \
         arena_stack.local_pointer_offset++;                                    \
     } while (0)

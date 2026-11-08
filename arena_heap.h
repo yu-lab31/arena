@@ -10,12 +10,25 @@
 
 typedef struct
 {
-    uint8_t occu_flags[ARENA_BLOCK_CAP >> 3]; // 28K
+    uint8_t occu_flags[ARENA_BLOCK_CAP >> 3 >> 4]; // 16Byte Aligned
     size_t next;
 } ArenaBlockHeader;
 
-#define OCCU_FLAG(flags, idx)                                                  \
+#define ARENA_OCCU_FLAG(flags, idx)                                            \
     (flags[(size_t)idx >> 3] & ((uint8_t)1 << ((size_t)idx & (size_t)7)))
+
+#define ARENA_OCCU_RANGE(flags, beg, len)                                      \
+    do {                                                                       \
+        for (size_t i = beg; i < beg + len; i++) {                             \
+            uint8_t *f = &(flags[i >> 3]);                                     \
+            if (!(i & (size_t)7) && i + 7 < beg + len) {                       \
+                *f = 255;                                                      \
+                i += 7;                                                        \
+            } else {                                                           \
+                *f |= (uint8_t)1 << (i & (size_t)7);                           \
+            }                                                                  \
+        }                                                                      \
+    } while (0)
 
 typedef struct
 {
@@ -41,18 +54,18 @@ typedef struct
 typedef struct
 {
     void *addr;
-    size_t size;
     size_t cap;
     size_t next;
     size_t prev;
 } ArenaHugeObject;
 
-#define ARENA_HUGE_OBJ_EMPTY(obj) (!(obj.addr || obj.size))
+#define ARENA_HUGE_OBJ_EMPTY(obj) (!(obj.addr || obj.cap))
 
 typedef struct
 {
     ArenaHugeObject objects[ARENA_HEAP_HUGE_OBJECT_NUM];
-    size_t objectc; // number of existing objects
+    size_t first;
+    size_t last;
 } ArenaHeapHugeHeader;
 
 typedef struct
