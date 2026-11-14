@@ -97,6 +97,12 @@ static inline size_t arena_alloc_block(int16_t tid)
     return i < ARENA_HEAP_NORMAL_BLOCK_NUM ? i : 0;
 }
 
+static inline size_t arena_locate_block(void *ptr)
+{
+    ArenaHeapNormal *seg = locate_heap_normal();
+    return ((size_t)ptr - (size_t)seg->blocks) & ~(ARENA_BLOCK_SZ - 1);
+}
+
 static inline void *arena_alloc_normal(size_t size, int16_t tid, size_t bid)
 {
     if (size > ARENA_BLOCK_CAP)
@@ -143,6 +149,26 @@ static inline void *arena_alloc_normal(size_t size, int16_t tid, size_t bid)
 
     block->header.next = next;
     return arena_alloc_normal(size, tid, next);
+}
+
+static inline void arena_free_normal(void *ptr, size_t size)
+{
+    ArenaHeapNormal *seg = locate_heap_normal();
+    size_t bid = arena_locate_block(ptr);
+
+    ArenaBlock *block = &(seg->blocks[bid]);
+    size_t beg = ((size_t)ptr - (size_t)block->data) / _Alignof(max_align_t);
+
+    if (!ARENA_OCCU_FLAG(block->header.occu_flags, beg)) {
+        return;
+    }
+
+    size_t aligned = (size + 15) / _Alignof(max_align_t);
+    aligned = aligned ? aligned : 1; // support 0-byte calls
+
+    if (beg <= ARENA_BLOCK_CAP / _Alignof(max_align_t) - aligned) {
+        ARENA_UNOCCU_RANGE(block->header.occu_flags, beg, aligned);
+    }
 }
 
 static inline void allock(void)

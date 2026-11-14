@@ -30,6 +30,19 @@ typedef struct
         }                                                                      \
     } while (0)
 
+#define ARENA_UNOCCU_RANGE(flags, beg, len)                                    \
+    do {                                                                       \
+        for (size_t i = beg; i < beg + len; i++) {                             \
+            uint8_t *f = &(flags[i >> 3]);                                     \
+            if (!(i & (size_t)7) && i + 7 < beg + len) {                       \
+                *f = 0;                                                        \
+                i += 7;                                                        \
+            } else {                                                           \
+                *f &= (~((uint8_t)1)) << (i & (size_t)7);                      \
+            }                                                                  \
+        }                                                                      \
+    } while (0)
+
 typedef struct
 {
     ArenaBlockHeader header;
