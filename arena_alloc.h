@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 
 #include "arena_heap.h"
@@ -98,12 +99,6 @@ static inline size_t arena_alloc_block(int16_t tid)
     return i < ARENA_HEAP_NORMAL_BLOCK_NUM ? i : 0;
 }
 
-static inline size_t arena_locate_block(void *ptr)
-{
-    ArenaHeapNormal *seg = locate_heap_normal();
-    return ((size_t)ptr - (size_t)seg->blocks) & ~(ARENA_BLOCK_SZ - 1);
-}
-
 static inline void *arena_alloc_normal(size_t size, int16_t tid, size_t bid)
 {
     if (size > ARENA_BLOCK_CAP)
@@ -155,7 +150,7 @@ static inline void *arena_alloc_normal(size_t size, int16_t tid, size_t bid)
 static inline void arena_free_normal(void *ptr, size_t size)
 {
     ArenaHeapNormal *seg = locate_heap_normal();
-    size_t bid = arena_locate_block(ptr);
+    size_t bid = ((size_t)ptr - (size_t)seg->blocks) / ARENA_BLOCK_SZ;
 
     ArenaBlock *block = &(seg->blocks[bid]);
     size_t beg = ((size_t)ptr - (size_t)block->data) / _Alignof(max_align_t);
@@ -308,17 +303,26 @@ static inline void arena_free_huge(void *ptr)
 {
     ArenaHeapHuge *seg = locate_heap_huge();
     ArenaHugeObject *obj = (void *)((size_t)ptr - ARENA_HUGE_OBJECT_HEADER_SZ);
+    size_t bid = obj->prev;
 
-    obj = &(seg->header.objects[obj->prev]);
+    obj = &(seg->header.objects[bid]);
+    if (obj->addr != ptr)
+        return; // double-free
 
-    ArenaHugeObject *prev = &(seg->header.objects[obj->prev]);
-    ArenaHugeObject *next = &(seg->header.objects[obj->next]);
+    if (seg->header.first == bid && seg->header.last == bid) {
+        // do nothing
+    } else if (seg->header.first == bid) {
+        seg->header.first = obj->next;
+    } else if (seg->header.last == bid) {
+        seg->header.last = obj->prev;
+    } else {
+        seg->header.objects[obj->prev].next = obj->next;
+        seg->header.objects[obj->next].prev = obj->prev;
+    }
 
-    prev->next = obj->next;
-    next->prev = obj->prev;
-
-    obj->addr = NULL;
-    obj->cap = 0;
+    madvise((void *)((size_t)ptr - ARENA_HUGE_OBJECT_HEADER_SZ), obj->cap,
+            MADV_DONTNEED);
+    memset(obj, 0, sizeof(*obj));
 }
 
 #endif // ARENA_ALLOC_H_

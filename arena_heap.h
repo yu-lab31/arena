@@ -38,7 +38,7 @@ typedef struct
                 *f = 0;                                                        \
                 i += 7;                                                        \
             } else {                                                           \
-                *f &= (~((uint8_t)1)) << (i & (size_t)7);                      \
+                *f &= (uint8_t)~((uint8_t)1 << (i & (size_t)7));               \
             }                                                                  \
         }                                                                      \
     } while (0)
