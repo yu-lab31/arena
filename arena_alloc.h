@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 
@@ -298,6 +299,26 @@ eocf:
         meta->next = meta->prev = bid;
     }
     return res;
+}
+
+/**
+ * PAY ATTENTION: not thread-safe!
+ * */
+static inline void arena_free_huge(void *ptr)
+{
+    ArenaHeapHuge *seg = locate_heap_huge();
+    ArenaHugeObject *obj = (void *)((size_t)ptr - ARENA_HUGE_OBJECT_HEADER_SZ);
+
+    obj = &(seg->header.objects[obj->prev]);
+
+    ArenaHugeObject *prev = &(seg->header.objects[obj->prev]);
+    ArenaHugeObject *next = &(seg->header.objects[obj->next]);
+
+    prev->next = obj->next;
+    next->prev = obj->prev;
+
+    obj->addr = NULL;
+    obj->cap = 0;
 }
 
 #endif // ARENA_ALLOC_H_
